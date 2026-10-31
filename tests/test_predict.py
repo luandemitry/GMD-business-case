@@ -125,3 +125,11 @@ def test_backtest_hides_each_trial_before_predicting_it(harvested, pcts):
     assert result.loc["agronomic", "mae_days"] == 2.0
     assert result.loc["agronomic", "bias_days"] == 0.0
     assert set(result.index) == {"agronomic", "usda_curve", "combined"}
+
+
+def test_backtest_errors_keep_one_row_per_trial_and_method(harvested, pcts):
+    errors = predict.backtest_errors(pd.DataFrame(harvested), comparison(pcts), IOWA, AS_OF)
+    assert list(errors.columns) == predict.ERROR_COLUMNS
+    assert errors.groupby("method").size().to_dict() == {"agronomic": 3, "combined": 3, "usda_curve": 3}
+    agronomic = errors[errors["method"] == "agronomic"].set_index("trial_id")["error_days"]
+    assert agronomic.to_dict() == {1: 3, 2: 0, 3: -3}

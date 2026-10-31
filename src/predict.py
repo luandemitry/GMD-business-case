@@ -108,26 +108,42 @@ def predict_pending(trials: pd.DataFrame, comparison: pd.DataFrame, progress: pd
     return result
 
 
-def backtest(trials: pd.DataFrame, comparison: pd.DataFrame, progress: pd.DataFrame, as_of: date) -> pd.DataFrame:
+ERROR_COLUMNS = ["trial_id", "maturity_zone", "state_code", "method", "error_days"]
+
+
+def backtest_errors(trials: pd.DataFrame, comparison: pd.DataFrame, progress: pd.DataFrame, as_of: date) -> pd.DataFrame:
     data = with_usda_pct(trials, comparison)
     harvested = data[data["harvest_date"].notna()]
-    errors = {method: [] for method in METHODS}
+    rows = []
 
     for trial in harvested.itertuples():
         model = fit(harvested[harvested["trial_id"] != trial.trial_id])
         predicted = predict_trial(trial, model, progress, as_of)
         for method, column in METHODS.items():
             if pd.notna(predicted[column]):
-                errors[method].append((predicted[column] - trial.harvest_date).days)
+                rows.append({
+                    "trial_id": trial.trial_id,
+                    "maturity_zone": trial.maturity_zone,
+                    "state_code": trial.state_code,
+                    "method": method,
+                    "error_days": (predicted[column] - trial.harvest_date).days,
+                })
+    return pd.DataFrame(rows, columns=ERROR_COLUMNS)
 
-    rows = [
-        {
-            "method": method,
-            "n": len(values),
-            "mae_days": round(float(np.mean(np.abs(values))), 1),
-            "bias_days": round(float(np.mean(values)), 1),
-        }
-        for method, values in errors.items()
-        if values
-    ]
+
+def summarize_errors(errors: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for method in METHODS:
+        values = errors.loc[errors["method"] == method, "error_days"]
+        if len(values):
+            rows.append({
+                "method": method,
+                "n": len(values),
+                "mae_days": round(float(values.abs().mean()), 1),
+                "bias_days": round(float(values.mean()), 1),
+            })
     return pd.DataFrame(rows, columns=["method", "n", "mae_days", "bias_days"])
+
+
+def backtest(trials: pd.DataFrame, comparison: pd.DataFrame, progress: pd.DataFrame, as_of: date) -> pd.DataFrame:
+    return summarize_errors(backtest_errors(trials, comparison, progress, as_of))
