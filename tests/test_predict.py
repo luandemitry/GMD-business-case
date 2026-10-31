@@ -50,6 +50,22 @@ def test_fit_ignores_zones_with_too_few_samples(pcts):
     assert 8 not in predict.fit(data)["days_by_zone"]
 
 
+def test_fit_ignores_trials_harvested_before_the_area_started(harvested):
+    data = predict.with_usda_pct(pd.DataFrame(harvested), comparison({1: 0.0, 2: 0.0, 3: 60.0}))
+    model = predict.fit(data)
+    assert model["pct_by_zone"] == {}
+    assert model["pct_all"] == 60.0
+    assert model["days_by_zone"] == {5: 152.0}
+
+
+def test_no_usda_prediction_when_every_training_trial_was_harvested_before_the_area(harvested):
+    trials = pd.DataFrame([*harvested, trial(4)])
+    row = predict.predict_pending(trials, comparison({1: 0.0, 2: 0.0, 3: 0.0}), IOWA, AS_OF).iloc[0]
+    assert pd.isna(row["pred_usda_date"])
+    assert row["pred_agronomic_date"] == PLANTED + pd.Timedelta(days=152)
+    assert row["pred_confidence"] == "low"
+
+
 def test_fit_ignores_non_positive_cycle_lengths(pcts):
     rows = [trial(1, days=150), trial(2, days=152), {**trial(3, days=154), "days_to_harvest": -10.0}]
     data = predict.with_usda_pct(pd.DataFrame(rows), comparison(pcts))

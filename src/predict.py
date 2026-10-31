@@ -7,6 +7,7 @@ from src.clean_trials import ZONE_RANGE
 from src.harvest import date_reaching, resolve_geo, series_for
 
 MIN_ZONE_SAMPLES = 2
+MIN_TARGET_PCT = 5.0
 HIGH_CONFIDENCE_SPREAD_DAYS = 10
 MEDIUM_CONFIDENCE_SPREAD_DAYS = 25
 OVERDUE_AFTER_DAYS = 14
@@ -23,20 +24,20 @@ METHODS = {
 }
 
 
+def zone_medians(frame: pd.DataFrame, column: str) -> dict:
+    in_range = frame["maturity_zone"].between(*ZONE_RANGE).fillna(False).astype(bool)
+    stats = frame[in_range].groupby("maturity_zone")[column].agg(["median", "count"])
+    return stats.loc[stats["count"] >= MIN_ZONE_SAMPLES, "median"].to_dict()
+
+
 def fit(harvested: pd.DataFrame) -> dict:
     train = harvested[harvested["days_to_harvest"] > 0]
-    in_range = train["maturity_zone"].between(*ZONE_RANGE).fillna(False).astype(bool)
-    valid_zone = train[in_range]
-
-    def by_zone(column: str) -> dict:
-        stats = valid_zone.groupby("maturity_zone")[column].agg(["median", "count"])
-        return stats.loc[stats["count"] >= MIN_ZONE_SAMPLES, "median"].to_dict()
-
+    usable = train[train["usda_pct_at_trial_harvest"] >= MIN_TARGET_PCT]
     return {
-        "days_by_zone": by_zone("days_to_harvest"),
+        "days_by_zone": zone_medians(train, "days_to_harvest"),
         "days_all": float(train["days_to_harvest"].median()) if len(train) else np.nan,
-        "pct_by_zone": by_zone("usda_pct_at_trial_harvest"),
-        "pct_all": float(train["usda_pct_at_trial_harvest"].median()) if train["usda_pct_at_trial_harvest"].notna().any() else np.nan,
+        "pct_by_zone": zone_medians(usable, "usda_pct_at_trial_harvest"),
+        "pct_all": float(usable["usda_pct_at_trial_harvest"].median()) if len(usable) else np.nan,
     }
 
 
