@@ -72,6 +72,11 @@ Query: {sql}
 Error: {error}
 Return corrected JSON in the same format."""
 
+LLM_UNAVAILABLE = (
+    "The language model is not responding right now. This demo uses a free tier that limits requests per minute "
+    "and per day; wait about a minute and ask again. The map, filters and trial explanations keep working."
+)
+
 OUT_OF_SCOPE = "I can only answer questions about the trials, drought around pollination, USDA harvest progress and harvest predictions."
 
 
@@ -88,6 +93,7 @@ class AgentResult:
     data_as_of: str | None = None
     model: str | None = None
     error: str | None = None
+    llm_unavailable: bool = False
 
 
 def parse_json(text: str) -> dict:
@@ -182,10 +188,9 @@ class Agent:
         as_of = f"data as of {run['as_of_date'][0]} (pipeline run {run['run_at_utc'][0]})" if len(run) else None
         return as_of, backtest
 
-    def plan(self, question: str, history: list[tuple[str, str]]) -> dict:
+    def plan_prompt(self, question: str, history: list[tuple[str, str]]) -> str:
         recent = "\n".join(f"Q: {q}\nA: {a}" for q, a in history[-HISTORY_TURNS:])
-        prompt = (f"Conversation so far:\n{recent}\n\n" if recent else "") + f"Question: {question}"
-        return parse_json(self.llm.generate(SQL_SYSTEM, prompt, json_output=True))
+        return (f"Conversation so far:\n{recent}\n\n" if recent else "") + f"Question: {question}"
 
     def execute(self, question: str, plan: dict) -> tuple[str, pd.DataFrame, list[str]]:
         steps = []
@@ -208,9 +213,14 @@ class Agent:
         result = AgentResult(question=question, answer="", data_as_of=as_of, model=getattr(self.llm, "name", None))
 
         try:
-            plan = self.plan(question, history)
+            raw_plan = self.llm.generate(SQL_SYSTEM, self.plan_prompt(question, history), json_output=True)
         except Exception as exc:
-            return self.failed(result, "The language model did not return a usable plan.", exc)
+            result.llm_unavailable = True
+            return self.failed(result, LLM_UNAVAILABLE, exc)
+        try:
+            plan = parse_json(raw_plan)
+        except Exception as exc:
+            return self.failed(result, "The language model did not return a usable plan. Try rephrasing the question.", exc)
 
         result.steps = [f"Interpreted the question: {step}" for step in plan.get("reasoning", [])]
         if not plan.get("sql"):
@@ -238,8 +248,12 @@ class Agent:
         try:
             result.answer = self.llm.generate(ANSWER_SYSTEM, prompt).strip()
         except Exception as exc:
-            result.answer = f"{len(rows)} row(s) matched. The summary could not be generated; see the table below."
+            result.answer = (
+                f"{len(rows)} row(s) matched, but the language model did not respond to write the summary "
+                "(free-tier limit). The table under 'How I got this result' has the full answer."
+            )
             result.error = type(exc).__name__
+            result.llm_unavailable = True
         result.model = getattr(self.llm, "last_used", None) or result.model
         return result
 

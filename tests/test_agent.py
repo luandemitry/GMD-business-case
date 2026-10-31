@@ -130,10 +130,25 @@ def test_unsafe_query_from_model_is_never_executed(insights_db):
     assert agent.run_query(insights_db, "SELECT count(*) AS n FROM trials")["n"][0] == 9
 
 
-def test_model_failure_returns_friendly_message(insights_db):
+def test_model_failure_explains_the_free_tier_limit(insights_db):
     result = agent.Agent(ScriptedLLM(RuntimeError("quota")), insights_db).ask("Anything")
-    assert "language model" in result.answer
+    assert result.llm_unavailable
+    assert "free tier" in result.answer
     assert "quota" in result.error
+
+
+def test_invalid_model_output_is_not_reported_as_limit(insights_db):
+    result = agent.Agent(ScriptedLLM("not json"), insights_db).ask("Anything")
+    assert not result.llm_unavailable
+    assert "usable plan" in result.answer
+
+
+def test_failure_while_writing_summary_still_returns_rows(insights_db):
+    llm = ScriptedLLM(plan("SELECT count(*) AS n FROM trial_insights"), RuntimeError("quota"))
+    result = agent.Agent(llm, insights_db).ask("How many trials?")
+    assert result.llm_unavailable
+    assert result.rows["n"][0] == 9
+    assert "free-tier limit" in result.answer
 
 
 def test_follow_up_questions_include_recent_history(insights_db):

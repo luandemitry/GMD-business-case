@@ -176,7 +176,10 @@ def show_trials(trials: pd.DataFrame, backtest: pd.DataFrame) -> None:
 
 def show_result(result) -> None:
     with st.chat_message("assistant"):
-        st.markdown(result.answer)
+        if result.llm_unavailable:
+            st.warning(result.answer, icon="⏳")
+        else:
+            st.markdown(result.answer)
         with st.expander("How I got this result"):
             if result.steps:
                 st.markdown("\n".join(f"{i}. {step}" for i, step in enumerate(result.steps, 1)))
