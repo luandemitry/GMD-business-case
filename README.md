@@ -141,7 +141,7 @@ All 4 trials outside the US are also zone 0, which suggests a different zone sys
 - NASS curves describe commercial fields; research plots are often harvested earlier, which is why half of the trials are "early".
 - Trials harvested after the latest NASS report cannot be compared until the next weekly release.
 - Prediction statuses depend on the run date; the pipeline must run regularly.
-- Free LLM tier: rate limits, and prompts (schema, question, result rows) are sent to Google. In production this moves to Azure OpenAI inside the company tenant.
+- **Free LLM tier (known limitation of the live demo):** the chat uses Gemini's free tier, which limits requests per minute and per day. Each question makes two calls (SQL and answer), so several questions in a row can return *"The language model did not return a usable plan"*. Waiting about a minute and asking again solves it. The map, filters and per-trial explanations do not use the LLM and are not affected. A Groq key (`GROQ_API_KEY`) can be added as an automatic fallback without code changes. Prompts (schema, question, result rows) are sent to Google. In production this moves to Azure OpenAI inside the company tenant, with provisioned quota.
 
 Planned improvements: [docs/improvements.md](docs/improvements.md).
 
