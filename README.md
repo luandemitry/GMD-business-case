@@ -34,7 +34,7 @@ In the app, the chat answers these and follow-up questions ("which of those are 
 | Storage | Parquet + DuckDB (`data/breeder.duckdb`) | Typed dates, columnar, single file, read-only mode for the agent |
 | Serving | View `trial_insights`: one row per trial with the three answers | One curated table for the UI and the agent |
 | Interface | Streamlit (map, trial explanation, chat) on Streamlit Community Cloud | Free, fast to ship, enough for a prototype |
-| LLM | Gemini 3.6 Flash, Groq fallback, behind a small interface | Zero cost; provider swap is configuration only |
+| LLM | Gemini 3.5 Flash-Lite, Groq fallback, behind a small interface | Zero cost and 500 requests/day on the free tier (Flash allows only 20); provider swap is configuration only |
 | Automation | GitHub Actions: unit tests, live API tests, manual pipeline run | Validates the real APIs on every push |
 
 Production target (Azure) in [docs/production.md](docs/production.md), diagram in [docs/production.png](docs/production.png).

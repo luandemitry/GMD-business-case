@@ -84,7 +84,7 @@ class FallbackLLM:
 def build_llm() -> FallbackLLM | None:
     providers: list[LLM] = []
     if key := get_secret("GEMINI_API_KEY"):
-        providers.append(GeminiLLM(key, get_secret("GEMINI_MODEL", "gemini-3.6-flash")))
+        providers.append(GeminiLLM(key, get_secret("GEMINI_MODEL", "gemini-3.5-flash-lite")))
     if key := get_secret("GROQ_API_KEY"):
         providers.append(GroqLLM(key, get_secret("GROQ_MODEL", "openai/gpt-oss-120b")))
     return FallbackLLM(providers) if providers else None
