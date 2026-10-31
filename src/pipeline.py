@@ -47,6 +47,7 @@ def build_tables(
     weekly = drought_fetch(counties, date(season_year, 1, 1), min(date(season_year, 12, 31), as_of))
 
     comparison = harvest.compare(trials, progress)
+    backtest_errors = predict.backtest_errors(trials, comparison, progress, as_of)
     run_info = pd.DataFrame([{
         "run_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "season_year": season_year,
@@ -59,7 +60,8 @@ def build_tables(
         "drought_pollination": drought.drought_at_pollination(trials, weekly),
         "harvest_comparison": comparison,
         "harvest_prediction": predict.predict_pending(trials, comparison, progress, as_of),
-        "harvest_backtest": predict.backtest(trials, comparison, progress, as_of),
+        "harvest_backtest": predict.summarize_errors(backtest_errors),
+        "harvest_backtest_errors": backtest_errors,
         "usda_harvest_progress": progress,
         "usdm_weekly": weekly,
         "data_quality": clean_trials.quality_summary(raw, trials),
@@ -115,6 +117,12 @@ def print_summary(tables: dict[str, pd.DataFrame]) -> None:
         print(counts.to_string())
     print("\n== backtest (leave-one-out, days)")
     print(tables["harvest_backtest"].to_string(index=False))
+
+    usda_errors = tables["harvest_backtest_errors"].query("method == 'usda_curve'")
+    for label, column in [("state", "state_code"), ("maturity zone", "maturity_zone")]:
+        by_group = usda_errors.groupby(column)["error_days"].agg(n="size", mean_error="mean").round(1)
+        print(f"\n== usda_curve error by {label} (days, negative = predicted too early)")
+        print(by_group.to_string())
 
 
 def main() -> None:
