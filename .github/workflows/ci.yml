@@ -19,4 +19,6 @@ jobs:
       - name: Live API tests
         env:
           NASS_API_KEY: ${{ secrets.NASS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-3.6-flash
         run: python -m pytest -q -m network
