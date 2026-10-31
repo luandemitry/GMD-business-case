@@ -73,12 +73,28 @@ def test_fetch_year_sends_filters_and_caches():
     assert session.last_params["commodity_desc"] == "CORN"
     assert session.last_params["unit_desc"] == "PCT HARVESTED"
     assert session.last_params["year"] == 2026
+    assert session.last_params["agg_level_desc"] == "STATE"
+
+
+def test_fetch_year_national_level_uses_its_own_request_and_cache():
+    session = FakeSession(FakeResponse(payload={"data": [record(state="US")]}))
+    nass.fetch_year(2026, session, api_key="k", level="STATE")
+    nass.fetch_year(2026, session, api_key="k", level="NATIONAL")
+    assert session.calls == 2
+    assert session.last_params["agg_level_desc"] == "NATIONAL"
+
+
+def test_fetch_progress_combines_state_and_national_series():
+    session = FakeSession(FakeResponse(payload={"data": [record(state="IA")]}))
+    df = nass.fetch_progress([2026], session, api_key="k")
+    assert session.calls == 2
+    assert set(df["state_code"]) == {"IA"}
 
 
 def test_fetch_year_does_not_store_api_key_in_cache():
     session = FakeSession(FakeResponse(payload={"data": [record()]}))
     nass.fetch_year(2026, session, api_key="secret-key")
-    cached = (nass.CACHE_DIR / "corn_harvest_2026.json").read_text()
+    cached = (nass.CACHE_DIR / "corn_harvest_state_2026.json").read_text()
     assert "secret-key" not in cached
 
 
@@ -108,3 +124,11 @@ def test_nass_service_returns_2026_corn_harvest_progress():
     assert not df.empty
     assert df["pct_harvested"].between(0, 100).all()
     assert {"IA", "IL"} <= set(df["state_code"])
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not os.getenv("NASS_API_KEY"), reason="NASS_API_KEY not set")
+def test_nass_service_returns_national_series():
+    df = nass.normalize(nass.fetch_year(2026, level="NATIONAL"))
+    assert not df.empty
+    assert set(df["state_code"]) == {"US"}

@@ -20,7 +20,6 @@ FILTERS = {
     "statisticcat_desc": "PROGRESS",
     "unit_desc": "PCT HARVESTED",
     "domain_desc": "TOTAL",
-    "agg_level_desc": "STATE",
     "format": "JSON",
 }
 
@@ -33,13 +32,18 @@ def get_api_key() -> str:
     return key
 
 
-def fetch_year(year: int, session: requests.Session | None = None, api_key: str | None = None) -> list[dict]:
-    cache_file = CACHE_DIR / f"corn_harvest_{year}.json"
+def fetch_year(
+    year: int,
+    session: requests.Session | None = None,
+    api_key: str | None = None,
+    level: str = "STATE",
+) -> list[dict]:
+    cache_file = CACHE_DIR / f"corn_harvest_{level.lower()}_{year}.json"
     if cache_file.exists():
         return json.loads(cache_file.read_text())
 
     session = session or build_session()
-    params = {**FILTERS, "year": year, "key": api_key or get_api_key()}
+    params = {**FILTERS, "agg_level_desc": level, "year": year, "key": api_key or get_api_key()}
     response = session.get(NASS_URL, params=params, timeout=TIMEOUT_SECONDS)
 
     if response.status_code == 400 and "no data" in response.text.lower():
@@ -76,6 +80,15 @@ def normalize(records: list[dict]) -> pd.DataFrame:
     )
 
 
-def fetch_progress(years: list[int], session: requests.Session | None = None) -> pd.DataFrame:
-    frames = [normalize(fetch_year(year, session)) for year in years]
+def fetch_progress(
+    years: list[int],
+    session: requests.Session | None = None,
+    levels: tuple[str, ...] = ("STATE", "NATIONAL"),
+    api_key: str | None = None,
+) -> pd.DataFrame:
+    frames = [
+        normalize(fetch_year(year, session, api_key=api_key, level=level))
+        for year in years
+        for level in levels
+    ]
     return pd.concat(frames, ignore_index=True)
