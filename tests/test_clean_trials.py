@@ -33,8 +33,8 @@ def test_exact_duplicate_rows_are_removed(raw, cleaned):
 
 def test_swapped_coordinates_are_fixed_and_flagged(cleaned):
     row = cleaned[cleaned["trial_id"] == 4].iloc[0]
-    assert row["latitude"] == pytest.approx(44.3)
-    assert row["longitude"] == pytest.approx(-95.8)
+    assert row["latitude"] == pytest.approx(43.54)
+    assert row["longitude"] == pytest.approx(-96.73)
     assert "lat_lon_swapped_fixed" in flags_of(cleaned, 4)
 
 

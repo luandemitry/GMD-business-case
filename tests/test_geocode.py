@@ -45,8 +45,8 @@ def test_parse_response_handles_point_outside_us():
 
 def test_lookup_caches_response_on_disk():
     session = FakeSession(IOWA)
-    first = geocode.lookup(41.64, -93.02, session)
-    second = geocode.lookup(41.64, -93.02, session)
+    first = geocode.lookup(41.59, -93.60, session)
+    second = geocode.lookup(41.59, -93.60, session)
     assert first == second
     assert session.calls == 1
 
@@ -54,8 +54,8 @@ def test_lookup_caches_response_on_disk():
 def test_add_geography_flags_trials_outside_us():
     trials = pd.DataFrame({
         "trial_id": [1, 2],
-        "latitude": [41.64, 49.73],
-        "longitude": [-93.02, -97.26],
+        "latitude": [41.59, 49.90],
+        "longitude": [-93.60, -97.14],
         "dq_flags": ["", "invalid_maturity_zone"],
     })
     fake = lambda lat, lon: geocode.parse_response(IOWA if lat < 45 else OUTSIDE_US)
@@ -69,9 +69,9 @@ def test_add_geography_flags_trials_outside_us():
 
 @pytest.mark.network
 def test_fcc_service_resolves_real_coordinates(monkeypatch):
-    iowa = geocode.lookup(41.640896, -93.0162513)
+    iowa = geocode.lookup(41.5911, -93.6037)
     assert iowa["state_code"] == "IA"
     assert iowa["county_fips"].startswith("19")
 
-    manitoba = geocode.lookup(49.725344, -97.260078)
-    assert manitoba["county_fips"] is None
+    winnipeg = geocode.lookup(49.8951, -97.1384)
+    assert winnipeg["county_fips"] is None
