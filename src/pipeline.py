@@ -97,16 +97,26 @@ def run(
     return tables
 
 
+def print_summary(tables: dict[str, pd.DataFrame]) -> None:
+    sections = {
+        "data quality": tables["data_quality"].set_index("check")["rows"],
+        "geocoding: trials in the US": tables["trials"]["is_us"].value_counts(),
+        "drought status at pollination": tables["drought_pollination"]["drought_status"].value_counts(),
+        "harvest timing vs USDA area": tables["harvest_comparison"]["harvest_timing_vs_area"].value_counts(dropna=False),
+        "NASS series used (True = national fallback)": tables["harvest_comparison"]["nass_national_fallback"].value_counts(dropna=False),
+        "prediction status (pending trials)": tables["harvest_prediction"]["pred_status"].value_counts(),
+        "prediction confidence (pending trials)": tables["harvest_prediction"]["pred_confidence"].value_counts(dropna=False),
+    }
+    for title, counts in sections.items():
+        print(f"\n== {title}")
+        print(counts.to_string())
+    print("\n== backtest (leave-one-out, days)")
+    print(tables["harvest_backtest"].to_string(index=False))
+
+
 def main() -> None:
     load_dotenv()
-    tables = run(season_year=int(os.getenv("SEASON_YEAR", "2026")))
-    print(tables["data_quality"].to_string(index=False))
-    print()
-    print(tables["harvest_backtest"].to_string(index=False))
-    print()
-    print(tables["drought_pollination"]["drought_status"].value_counts().to_string())
-    print()
-    print(tables["harvest_prediction"]["pred_status"].value_counts().to_string())
+    print_summary(run(season_year=int(os.getenv("SEASON_YEAR", "2026"))))
 
 
 if __name__ == "__main__":
