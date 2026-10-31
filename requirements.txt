@@ -1,0 +1,10 @@
+pandas>=2.2
+pyarrow>=15
+duckdb>=1.0
+requests>=2.31
+python-dotenv>=1.0
+streamlit>=1.35
+plotly>=5.20
+google-genai>=1.0
+openai>=1.30
+pytest>=8.0

@@ -1,0 +1,14 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.streamlit/secrets.toml
+
+data/cache/
+data/processed/
+*.duckdb
+*.duckdb.wal
+
+*.pdf
+.DS_Store
