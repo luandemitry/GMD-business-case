@@ -17,4 +17,6 @@ jobs:
       - name: Unit tests
         run: python -m pytest -q -m "not network"
       - name: Live API tests
+        env:
+          NASS_API_KEY: ${{ secrets.NASS_API_KEY }}
         run: python -m pytest -q -m network
