@@ -98,8 +98,11 @@ def run(
 
 
 def print_summary(tables: dict[str, pd.DataFrame]) -> None:
+    at_harvest = tables["harvest_comparison"]["usda_pct_at_trial_harvest"].dropna()
     sections = {
         "data quality": tables["data_quality"].set_index("check")["rows"],
+        "% of area harvested when each trial was harvested": at_harvest.describe().round(1),
+        f"trials harvested before the area started (<{predict.MIN_TARGET_PCT}%)": pd.Series({"trials": int((at_harvest < predict.MIN_TARGET_PCT).sum())}),
         "geocoding: trials in the US": tables["trials"]["is_us"].value_counts(),
         "drought status at pollination": tables["drought_pollination"]["drought_status"].value_counts(),
         "harvest timing vs USDA area": tables["harvest_comparison"]["harvest_timing_vs_area"].value_counts(dropna=False),
