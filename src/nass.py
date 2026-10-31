@@ -11,6 +11,7 @@ from src.geocode import build_session
 NASS_URL = "https://quickstats.nass.usda.gov/api/api_GET/"
 CACHE_DIR = Path("data/cache/nass")
 TIMEOUT_SECONDS = 60
+HARVEST_SEASON_START_MONTH = 7
 
 FILTERS = {
     "source_desc": "SURVEY",
@@ -72,6 +73,8 @@ def normalize(records: list[dict]) -> pd.DataFrame:
         pct_harvested=pd.to_numeric(df["Value"].str.replace(",", ""), errors="coerce"),
     )
     df = df.dropna(subset=["week_ending", "pct_harvested"])
+    season_start = pd.to_datetime(df["year"].astype(str) + f"-{HARVEST_SEASON_START_MONTH:02d}-01")
+    df = df[df["week_ending"] >= season_start]
     return (
         df[columns]
         .drop_duplicates(["state_code", "week_ending"])

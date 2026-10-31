@@ -52,6 +52,14 @@ def test_normalize_keeps_only_grain_and_parses_values():
     assert str(df["week_ending"].dtype).startswith("datetime64")
 
 
+def test_normalize_drops_weeks_before_the_harvest_season():
+    df = nass.normalize([
+        record(state="ND", week="2026-04-12", value="95"),
+        record(state="ND", week="2026-10-18", value="30"),
+    ])
+    assert df["week_ending"].tolist() == [nass.pd.Timestamp("2026-10-18")]
+
+
 def test_normalize_drops_duplicate_state_weeks():
     df = nass.normalize([record(), record()])
     assert len(df) == 1
