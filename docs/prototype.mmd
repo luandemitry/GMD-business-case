@@ -1,0 +1,45 @@
+flowchart LR
+    subgraph SRC["Sources"]
+        T[("Trial sheet<br/>CSV")]
+        N["USDA NASS<br/>Quick Stats API"]
+        D["US Drought Monitor<br/>REST API"]
+        G["FCC / Census<br/>geocoder"]
+    end
+
+    subgraph ING["Ingestion · Python"]
+        C["clean_trials<br/>quality flags"]
+        GE["geocode<br/>lat/lon → county FIPS"]
+        NC["nass client"]
+        DC["usdm client"]
+        BR[("Bronze<br/>raw API cache · JSON")]
+    end
+
+    subgraph ANA["Analytics"]
+        Q1["Q1 · drought around<br/>pollination (plant + 70d)"]
+        Q2["Q2 · trial harvest vs<br/>USDA harvest curve"]
+        Q3["Q3 · harvest date<br/>prediction + backtest"]
+    end
+
+    subgraph SERVE["Serving · DuckDB"]
+        SI[("Silver<br/>Parquet tables")]
+        GO[("Gold view<br/>trial_insights")]
+    end
+
+    subgraph APP["Breeder interface · Streamlit"]
+        UI["Map · table · filters"]
+        AG["Text-to-SQL agent<br/>Gemini · Groq fallback"]
+        PV["How I got this result<br/>sources · steps · SQL · confidence"]
+    end
+
+    T --> C --> GE
+    G --> GE
+    N --> NC --> BR
+    D --> DC --> BR
+    GE --> SI
+    BR --> SI
+    SI --> Q1 & Q2 & Q3
+    Q1 & Q2 & Q3 --> GO
+    GO --> UI
+    GO -->|read-only SQL| AG
+    AG --> PV
+    UI --> PV

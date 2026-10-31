@@ -1,0 +1,45 @@
+flowchart LR
+    subgraph SRC["Sources"]
+        T[("Trial systems<br/>files · APIs")]
+        N["USDA NASS"]
+        D["Drought Monitor"]
+        X["Future: weather,<br/>soil, satellite"]
+    end
+
+    subgraph ORCH["Orchestration"]
+        ADF["Azure Data Factory<br/>scheduled + incremental"]
+        FN["Azure Functions<br/>API ingestion"]
+    end
+
+    subgraph LAKE["Lakehouse · ADLS Gen2 + Delta"]
+        BZ[("Bronze<br/>raw, immutable")]
+        SV[("Silver<br/>cleaned, validated")]
+        GD[("Gold<br/>trial_insights")]
+    end
+
+    subgraph QUAL["Quality and governance"]
+        DQ["Data quality checks<br/>quarantine bad rows"]
+        PU["Purview<br/>catalog · lineage"]
+    end
+
+    subgraph SERVE["Serving"]
+        SQL["Fabric / Synapse<br/>SQL endpoint"]
+        APP["App Service<br/>breeder interface"]
+        AOAI["Azure OpenAI<br/>agents"]
+        API["REST API<br/>downstream analytics"]
+    end
+
+    subgraph OPS["Security and operations"]
+        KV["Key Vault"]
+        ID["Entra ID · RBAC"]
+        MON["Azure Monitor<br/>alerts · cost"]
+        CI["GitHub Actions<br/>CI/CD"]
+    end
+
+    T & N & D & X --> ADF & FN --> BZ --> DQ --> SV --> GD
+    DQ -. rejects .-> PU
+    GD --> SQL --> APP & API
+    SQL --> AOAI --> APP
+    KV -.-> FN & APP & AOAI
+    ID -.-> SQL & APP
+    MON -.-> ADF & APP & AOAI
