@@ -11,4 +11,7 @@ data/processed/
 *.duckdb.wal
 
 *.pdf
+
+data/raw/*
+!data/raw/.gitkeep
 .DS_Store
