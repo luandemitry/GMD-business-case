@@ -5,11 +5,13 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from src import pipeline
 from src.agent import Agent, connect
 from src.explain import explain_trial
 from src.llm import build_llm, get_secret
 
 DB_PATH = Path(os.getenv("BREEDER_DB_PATH", "data/breeder.duckdb"))
+RAW_PATH = DB_PATH.parent / "raw" / "trials.csv"
 MAX_QUESTIONS = int(os.getenv("MAX_QUESTIONS_PER_SESSION", "20"))
 STATUS_COLORS = {
     "severe_drought": "#b3261e",
@@ -52,6 +54,31 @@ def load_data(db_path: str, modified: float) -> dict[str, pd.DataFrame]:
 @st.cache_resource
 def get_llm():
     return build_llm()
+
+
+@st.cache_resource(show_spinner=False)
+def build_database_from_secret(csv_text: str) -> None:
+    if nass_key := get_secret("NASS_API_KEY"):
+        os.environ["NASS_API_KEY"] = nass_key
+    RAW_PATH.parent.mkdir(parents=True, exist_ok=True)
+    RAW_PATH.write_text(csv_text.strip() + "\n")
+    pipeline.run(raw_path=RAW_PATH, db_path=DB_PATH, processed_dir=DB_PATH.parent / "processed")
+
+
+def ensure_database() -> None:
+    if DB_PATH.exists():
+        return
+    csv_text = get_secret("TRIALS_CSV")
+    if not csv_text:
+        st.error("No data yet. Run `python -m src.pipeline` to build the database.")
+        st.stop()
+    try:
+        with st.spinner("First start: building the database from USDA NASS, Drought Monitor and FCC (about a minute)..."):
+            build_database_from_secret(csv_text)
+    except Exception as exc:
+        build_database_from_secret.clear()
+        st.error(f"Could not build the database: {type(exc).__name__}: {exc}"[:400])
+        st.stop()
 
 
 def require_password() -> None:
@@ -222,10 +249,8 @@ def show_quality(data: dict[str, pd.DataFrame]) -> None:
 
 def main() -> None:
     st.title("Breeder Copilot · corn field trials")
-    if not DB_PATH.exists():
-        st.error("No data yet. Run `python -m src.pipeline` to build the database.")
-        st.stop()
     require_password()
+    ensure_database()
 
     data = load_data(str(DB_PATH), DB_PATH.stat().st_mtime)
     run = data["pipeline_run"].iloc[0]
